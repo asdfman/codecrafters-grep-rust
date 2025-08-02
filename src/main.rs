@@ -35,6 +35,7 @@ enum Regex {
     Exact(String),
     Digit,
     Alphanumeric,
+    PositiveGroup(String),
 }
 
 impl From<&str> for Regex {
@@ -42,6 +43,7 @@ impl From<&str> for Regex {
         match s {
             r"\d" => Self::Digit,
             r"\w" => Self::Alphanumeric,
+            val if val.starts_with('[') => Self::PositiveGroup(val[1..val.len() - 2].into()),
             _ => Self::Exact(s.into()),
         }
     }
@@ -53,6 +55,7 @@ impl Regex {
             Self::Exact(s) => input.contains(s),
             Self::Digit => input.chars().any(|c| c.is_ascii_digit()),
             Self::Alphanumeric => input.chars().any(|c| c.is_ascii_alphanumeric() || c == '_'),
+            Self::PositiveGroup(group) => input.chars().any(|c| group.contains(c)),
         }
     }
 }

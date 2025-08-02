@@ -44,8 +44,8 @@ impl From<&str> for Regex {
         match s {
             r"\d" => Self::Digit,
             r"\w" => Self::Alphanumeric,
-            val if val.starts_with('[') => Self::PositiveGroup(val[1..val.len() - 2].into()),
             val if val.starts_with("[^") => Self::NegativeGroup(val[2..val.len() - 2].into()),
+            val if val.starts_with('[') => Self::PositiveGroup(val[1..val.len() - 2].into()),
             _ => Self::Exact(s.into()),
         }
     }

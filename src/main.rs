@@ -34,12 +34,14 @@ fn main() {
 enum Regex {
     Exact(String),
     Digit,
+    Alphanumeric,
 }
 
 impl From<&str> for Regex {
     fn from(s: &str) -> Self {
         match s {
-            r"\d" => Regex::Digit,
+            r"\d" => Self::Digit,
+            r"\w" => Self::Alphanumeric,
             _ => Self::Exact(s.into()),
         }
     }

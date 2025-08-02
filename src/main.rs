@@ -50,8 +50,9 @@ impl From<&str> for Regex {
 impl Regex {
     fn matches(&self, input: &str) -> bool {
         match self {
-            Regex::Exact(s) => input.contains(s),
-            Regex::Digit => input.chars().any(|c| c.is_ascii_digit()),
+            Self::Exact(s) => input.contains(s),
+            Self::Digit => input.chars().any(|c| c.is_ascii_digit()),
+            Self::Alphanumeric => input.chars().any(|c| c.is_ascii_alphanumeric()),
         }
     }
 }

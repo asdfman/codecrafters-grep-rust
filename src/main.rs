@@ -52,7 +52,7 @@ impl Regex {
         match self {
             Self::Exact(s) => input.contains(s),
             Self::Digit => input.chars().any(|c| c.is_ascii_digit()),
-            Self::Alphanumeric => input.chars().any(|c| c.is_ascii_alphanumeric()),
+            Self::Alphanumeric => input.chars().any(|c| c.is_ascii_alphanumeric() || c == '_'),
         }
     }
 }

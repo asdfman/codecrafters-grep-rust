@@ -20,9 +20,9 @@ mod tests {
     #[test]
     fn test_alphanumeric_match() {
         let regex = Regex::parse(r"\w");
-        // assert!(regex.matches("abc"));
-        // assert!(regex.matches("_"));
-        // assert!(!regex.matches("!!!"));
+        assert!(regex.matches("abc"));
+        assert!(regex.matches("_"));
+        assert!(!regex.matches("!!!"));
         assert!(regex.matches("×=#_=×%"));
     }
 

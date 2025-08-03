@@ -12,7 +12,7 @@ pub enum Pattern {
     OneOrMore,
     ZeroOrOne,
     ZeroOrMore,
-    LiteralQuantifier(u64),
+    LiteralQuantifier(usize),
     PatternWithQuantifier(Box<Pattern>, Quantifier),
 }
 
@@ -21,14 +21,14 @@ pub enum Quantifier {
     ZeroOrOne,
     ZeroOrMore,
     OneOrMore,
-    Literal(u64),
+    Literal(usize),
 }
 
 impl Pattern {
-    pub fn matches(&self, s: &str) -> usize {
+    pub fn matches(&self, s: &str) -> Option<usize> {
         match self {
-            Self::PatternWithQuantifier(..) => todo!(),
-            _ => self.char_matches(s),
+            Self::PatternWithQuantifier(p, quantifier) => p.handle_quantifier(quantifier, s),
+            _ => (self.char_matches(s) > 0).then_some(1),
         }
     }
 
@@ -48,5 +48,30 @@ impl Pattern {
             return 1;
         }
         0
+    }
+
+    fn handle_quantifier(&self, quantifier: &Quantifier, s: &str) -> Option<usize> {
+        match quantifier {
+            Quantifier::ZeroOrOne => Some(self.char_matches(s)),
+            Quantifier::ZeroOrMore => Some(self.match_count(s)),
+            Quantifier::OneOrMore => {
+                let match_count = self.match_count(s);
+                (match_count > 0).then_some(match_count)
+            }
+            Quantifier::Literal(n) => {
+                let match_count = self.match_count(s);
+                (match_count == *n).then_some(match_count)
+            }
+        }
+    }
+
+    fn match_count(&self, s: &str) -> usize {
+        let mut count = 0;
+        let mut remaining = s;
+        while !remaining.is_empty() && self.char_matches(remaining) > 0 {
+            count += 1;
+            remaining = &remaining[1..];
+        }
+        count
     }
 }

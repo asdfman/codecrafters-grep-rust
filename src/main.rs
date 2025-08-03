@@ -2,9 +2,7 @@ use std::env;
 use std::io;
 use std::process;
 
-fn match_pattern(input_line: &str, regex: Regex) -> bool {
-    regex.matches(input_line)
-}
+use codecrafters_grep::regex::Regex;
 
 // Usage: echo <input_text> | your_program.sh -E <pattern>
 fn main() {
@@ -18,47 +16,13 @@ fn main() {
 
     io::stdin().read_line(&mut input_line).unwrap();
 
-    let regex: Regex = pattern.as_str().into();
-    dbg!(&regex);
+    let regex = Regex::parse(pattern.as_str());
 
-    if match_pattern(&input_line, regex) {
+    if regex.matches(&input_line) {
         println!("Match found: {}", input_line.trim());
         process::exit(0)
     } else {
         println!("Match not found: {}", input_line.trim());
         process::exit(1)
-    }
-}
-
-#[derive(Debug)]
-enum Regex {
-    Exact(String),
-    Digit,
-    Alphanumeric,
-    PositiveGroup(String),
-    NegativeGroup(String),
-}
-
-impl From<&str> for Regex {
-    fn from(s: &str) -> Self {
-        match s {
-            r"\d" => Self::Digit,
-            r"\w" => Self::Alphanumeric,
-            val if val.starts_with("[^") => Self::NegativeGroup(val[2..val.len() - 1].into()),
-            val if val.starts_with('[') => Self::PositiveGroup(val[1..val.len() - 1].into()),
-            _ => Self::Exact(s.into()),
-        }
-    }
-}
-
-impl Regex {
-    fn matches(&self, input: &str) -> bool {
-        match self {
-            Self::Exact(s) => input.contains(s),
-            Self::Digit => input.chars().any(|c| c.is_ascii_digit()),
-            Self::Alphanumeric => input.chars().any(|c| c.is_ascii_alphanumeric() || c == '_'),
-            Self::PositiveGroup(group) => input.chars().any(|c| group.contains(c)),
-            Self::NegativeGroup(group) => input.chars().any(|c| !group.contains(c)),
-        }
     }
 }

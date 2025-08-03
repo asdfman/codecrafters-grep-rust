@@ -27,8 +27,11 @@ impl From<&str> for Pattern {
                 Self::NegativeGroup(Self::parse(&val[2..val.len() - 1]))
             }
             val if val.starts_with('[') => Self::PositiveGroup(Self::parse(&val[1..val.len() - 1])),
+            val if val.starts_with('(') && split_either_variants(val).len() == 1 => {
+                Self::CaptureGroup(Self::parse(&val[1..val.len() - 1]))
+            }
             val if val.starts_with('(') && val.contains('|') => Pattern::Alternate(
-                split_either_variants(&val[1..val.len() - 1])
+                split_either_variants(val)
                     .into_iter()
                     .map(Pattern::parse)
                     .collect(),
@@ -130,21 +133,22 @@ fn find_closing_char(s: &str, opening_char: char) -> Option<usize> {
 }
 
 fn split_either_variants(s: &str) -> Vec<&str> {
+    let inner = &s[1..s.len() - 1];
     let mut variants = Vec::new();
     let mut start = 0;
     let mut depth = 0;
-    for (i, c) in s.char_indices() {
+    for (i, c) in inner.char_indices() {
         match c {
             '(' | '[' => depth += 1,
             ')' | ']' => depth -= 1,
             '|' if depth == 0 => {
-                variants.push(&s[start..i]);
+                variants.push(&inner[start..i]);
                 start = i + 1;
             }
             _ => {}
         }
     }
-    variants.push(&s[start..]);
+    variants.push(&inner[start..]);
     variants
 }
 

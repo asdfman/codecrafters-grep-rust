@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Pattern {
     Literal(char),
     Digit,
@@ -14,9 +14,10 @@ pub enum Pattern {
     ZeroOrMore,
     LiteralQuantifier(usize),
     PatternWithQuantifier(Box<Pattern>, Quantifier),
+    CaptureGroup(Vec<Pattern>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Quantifier {
     ZeroOrOne,
     ZeroOrMore,
@@ -28,6 +29,7 @@ impl Pattern {
     pub fn matches(&self, s: &str) -> Option<usize> {
         match self {
             Self::PatternWithQuantifier(p, quantifier) => p.handle_quantifier(quantifier, s),
+            Self::EndOfString => s.is_empty().then_some(0),
             _ => (self.char_matches(s) > 0).then_some(1),
         }
     }
@@ -74,5 +76,14 @@ impl Pattern {
             count += 1;
         }
         count
+    }
+
+    pub fn is_optional(&self) -> bool {
+        match self {
+            Pattern::PatternWithQuantifier(_, Quantifier::ZeroOrOne)
+            | Pattern::PatternWithQuantifier(_, Quantifier::ZeroOrMore) => true,
+            Pattern::Alternate(alts) => alts.iter().any(|alt| alt.iter().any(|x| x.is_optional())),
+            _ => false,
+        }
     }
 }

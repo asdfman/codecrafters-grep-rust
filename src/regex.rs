@@ -14,10 +14,10 @@ impl Regex {
 
     pub fn matches(&self, input: &str) -> bool {
         if let Some(Pattern::StartOfString) = self.patterns.first() {
-            return try_match(&self.patterns[1..], input);
+            return try_match(&self.patterns[1..], input).is_some();
         }
         for (cur, _) in input.char_indices() {
-            if try_match(&self.patterns, &input[cur..]) {
+            if try_match(&self.patterns, &input[cur..]).is_some() {
                 return true;
             }
         }
@@ -25,33 +25,96 @@ impl Regex {
     }
 }
 
-fn try_match(patterns: &[Pattern], mut input: &str) -> bool {
+fn try_match(patterns: &[Pattern], mut input: &str) -> Option<usize> {
+    let mut total_matched_len = 0;
     for (idx, pattern) in patterns.iter().enumerate() {
         if input.is_empty() {
-            if let Pattern::EndOfString = pattern {
-                return true;
-            } else {
-                return false;
-            }
-        }
-        let Some(mut match_len) = pattern.matches(input) else {
-            return false;
-        };
-        if let Pattern::PatternWithQuantifier(_, q) = pattern {
-            while match_len > 0 {
-                if try_match(&patterns[idx + 1..], &input[match_len..]) {
-                    return true;
-                } else {
-                    match_len -= 1;
+            let mut rest = &patterns[idx..];
+            while let Some(pat) = rest.first() {
+                match pat {
+                    Pattern::EndOfString => return Some(total_matched_len),
+                    _ if pat.is_optional() => {
+                        rest = &rest[1..];
+                        continue;
+                    }
+                    _ => return None,
                 }
             }
-            match q {
-                Quantifier::OneOrMore => return false,
-                Quantifier::Literal(count) if *count > 0 => return false,
-                _ => {} // Zero matches ok - just continue
+            return None;
+        }
+        if let Pattern::CaptureGroup(p) = pattern {
+            let mut matched_len = 0;
+            let mut group_input = input;
+            for sub_pattern in p {
+                if let Some(len) = try_match(std::slice::from_ref(sub_pattern), group_input) {
+                    matched_len += len;
+                    group_input = &group_input[len..];
+                } else {
+                    if sub_pattern.is_optional() {
+                        continue;
+                    }
+                    return None;
+                }
+            }
+            total_matched_len += matched_len;
+            input = &input[matched_len..];
+            continue;
+        }
+        if let Pattern::Alternate(p) = pattern {
+            for sub_pattern in p {
+                if let Some(match_len) = try_match(sub_pattern, input) {
+                    let rest = &patterns[idx + 1..];
+                    if let Some(rest_len) = try_match(rest, &input[match_len..]) {
+                        return Some(total_matched_len + match_len + rest_len);
+                    }
+                }
+            }
+            return None;
+        }
+        if let Pattern::PatternWithQuantifier(inner, quant) = pattern {
+            let mut count = 0;
+            let mut consumed = 0;
+            let mut rest = input;
+            while let Some(len) = try_match(std::slice::from_ref(inner), rest) {
+                if len == 0 {
+                    break;
+                }
+                consumed += len;
+                rest = &rest[len..];
+                count += 1;
+                match quant {
+                    Quantifier::ZeroOrOne => break,
+                    Quantifier::Literal(n) if count >= *n => break,
+                    _ => {}
+                }
+            }
+            match quant {
+                Quantifier::ZeroOrOne | Quantifier::ZeroOrMore => {
+                    dbg!(&patterns[idx + 1..], rest);
+                    let rest_len = try_match(&patterns[idx + 1..], rest)?;
+                    return Some(consumed + rest_len);
+                }
+                Quantifier::OneOrMore => {
+                    if count == 0 {
+                        return None;
+                    }
+                    dbg!(&patterns[idx + 1..], rest);
+                    let rest_len = try_match(&patterns[idx + 1..], rest)?;
+                    return Some(consumed + rest_len);
+                }
+                Quantifier::Literal(n) => {
+                    if count != *n {
+                        return None;
+                    }
+                    dbg!(&patterns[idx + 1..], rest);
+                    let rest_len = try_match(&patterns[idx + 1..], rest)?;
+                    return Some(consumed + rest_len);
+                }
             }
         }
+        let match_len = pattern.matches(input)?;
+        total_matched_len += match_len;
         input = &input[match_len..];
     }
-    true
+    Some(total_matched_len)
 }

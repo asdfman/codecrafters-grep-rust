@@ -67,10 +67,11 @@ impl Pattern {
 
     fn match_count(&self, s: &str) -> usize {
         let mut count = 0;
-        let mut remaining = s;
-        while !remaining.is_empty() && self.char_matches(remaining) > 0 {
+        for (idx, _) in s.char_indices() {
+            if self.char_matches(&s[idx..]) == 0 {
+                break;
+            }
             count += 1;
-            remaining = &remaining[1..];
         }
         count
     }

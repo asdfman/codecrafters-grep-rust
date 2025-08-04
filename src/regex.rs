@@ -3,21 +3,24 @@ use crate::pattern::{Pattern, Quantifier};
 #[derive(Debug)]
 pub struct Regex {
     pub patterns: Vec<Pattern>,
+    pub capture_groups: Vec<String>,
 }
 
 impl Regex {
     pub fn parse(s: &str) -> Self {
         Self {
             patterns: Pattern::parse(s),
+            capture_groups: vec![],
         }
     }
 
     pub fn matches(&self, input: &str) -> bool {
+        let mut capture_groups = vec![];
         if let Some(Pattern::StartOfString) = self.patterns.first() {
-            return try_match(&self.patterns[1..], input).is_some();
+            return try_match(&self.patterns[1..], input, &mut capture_groups).is_some();
         }
         for (cur, _) in input.char_indices() {
-            if try_match(&self.patterns, &input[cur..]).is_some() {
+            if try_match(&self.patterns, &input[cur..], &mut capture_groups).is_some() {
                 return true;
             }
         }
@@ -25,7 +28,11 @@ impl Regex {
     }
 }
 
-fn try_match(patterns: &[Pattern], mut input: &str) -> Option<usize> {
+fn try_match(
+    patterns: &[Pattern],
+    mut input: &str,
+    capture_groups: &mut Vec<String>,
+) -> Option<usize> {
     let mut total_matched_len = 0;
     for (idx, pattern) in patterns.iter().enumerate() {
         if input.is_empty() {
@@ -46,7 +53,11 @@ fn try_match(patterns: &[Pattern], mut input: &str) -> Option<usize> {
             let mut matched_len = 0;
             let mut group_input = input;
             for sub_pattern in p {
-                if let Some(len) = try_match(std::slice::from_ref(sub_pattern), group_input) {
+                if let Some(len) = try_match(
+                    std::slice::from_ref(sub_pattern),
+                    group_input,
+                    capture_groups,
+                ) {
                     matched_len += len;
                     group_input = &group_input[len..];
                 } else {
@@ -57,14 +68,28 @@ fn try_match(patterns: &[Pattern], mut input: &str) -> Option<usize> {
                 }
             }
             total_matched_len += matched_len;
+            capture_groups.push(input[..matched_len].to_string());
             input = &input[matched_len..];
             continue;
         }
+        if let Pattern::BackReference(index) = pattern {
+            if *index > capture_groups.len() {
+                return None;
+            }
+            let ref_str = &capture_groups[*index - 1];
+            if input.starts_with(ref_str) {
+                total_matched_len += ref_str.len();
+                input = &input[ref_str.len()..];
+                continue;
+            } else {
+                return None;
+            }
+        }
         if let Pattern::Alternate(p) = pattern {
             for sub_pattern in p {
-                if let Some(match_len) = try_match(sub_pattern, input) {
+                if let Some(match_len) = try_match(sub_pattern, input, capture_groups) {
                     let rest = &patterns[idx + 1..];
-                    if let Some(rest_len) = try_match(rest, &input[match_len..]) {
+                    if let Some(rest_len) = try_match(rest, &input[match_len..], capture_groups) {
                         return Some(total_matched_len + match_len + rest_len);
                     }
                 }
@@ -75,7 +100,7 @@ fn try_match(patterns: &[Pattern], mut input: &str) -> Option<usize> {
             let mut count = 0;
             let mut match_lengths = vec![];
             let mut rest = input;
-            while let Some(len) = try_match(std::slice::from_ref(inner), rest) {
+            while let Some(len) = try_match(std::slice::from_ref(inner), rest, capture_groups) {
                 if len == 0 {
                     break;
                 }
@@ -91,14 +116,14 @@ fn try_match(patterns: &[Pattern], mut input: &str) -> Option<usize> {
             let mut min_required_match_count = 0;
             match quant {
                 Quantifier::ZeroOrOne => {
-                    let rest_len = try_match(&patterns[idx + 1..], rest)?;
+                    let rest_len = try_match(&patterns[idx + 1..], rest, capture_groups)?;
                     return Some(match_lengths.iter().sum::<usize>() + rest_len);
                 }
                 Quantifier::Literal(n) => {
                     if count != *n {
                         return None;
                     }
-                    let rest_len = try_match(&patterns[idx + 1..], rest)?;
+                    let rest_len = try_match(&patterns[idx + 1..], rest, capture_groups)?;
                     return Some(match_lengths.iter().sum::<usize>() + rest_len);
                 }
                 Quantifier::OneOrMore => min_required_match_count = 1,
@@ -107,12 +132,12 @@ fn try_match(patterns: &[Pattern], mut input: &str) -> Option<usize> {
             if count < min_required_match_count {
                 return None;
             }
-            let mut rest_len = try_match(&patterns[idx + 1..], rest);
+            let mut rest_len = try_match(&patterns[idx + 1..], rest, capture_groups);
             while rest_len.is_none() && count > min_required_match_count {
                 count -= 1;
                 match_lengths.pop().unwrap();
                 rest = &input[match_lengths.iter().sum()..];
-                rest_len = try_match(&patterns[idx + 1..], rest);
+                rest_len = try_match(&patterns[idx + 1..], rest, capture_groups);
             }
             return Some(match_lengths.iter().sum::<usize>() + rest_len?);
         }

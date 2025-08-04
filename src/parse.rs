@@ -17,6 +17,7 @@ impl From<&str> for Pattern {
         match s {
             r"\d" => Self::Digit,
             r"\w" => Self::Alphanumeric,
+            r"\\" => Self::Literal('\\'),
             "." => Self::Any,
             "$" => Self::EndOfString,
             "^" => Self::StartOfString,
@@ -30,17 +31,20 @@ impl From<&str> for Pattern {
             val if val.starts_with('(') && split_either_variants(val).len() == 1 => {
                 Self::CaptureGroup(Self::parse(&val[1..val.len() - 1]))
             }
-            val if val.starts_with('(') && val.contains('|') => Pattern::Alternate(
-                split_either_variants(val)
-                    .into_iter()
-                    .map(Pattern::parse)
-                    .collect(),
-            ),
+            val if val.starts_with('(') && val.contains('|') => {
+                Self::CaptureGroup(vec![Self::Alternate(
+                    split_either_variants(val)
+                        .into_iter()
+                        .map(Pattern::parse)
+                        .collect(),
+                )])
+            }
             val if val.starts_with('{') => Self::LiteralQuantifier(
                 val[1..val.len() - 1]
                     .parse()
                     .unwrap_or_else(|_| panic!("Invalid quantifier in pattern: {val}")),
             ),
+            val if val.starts_with('\\') => Self::BackReference(val[1..].parse().unwrap()),
             _ => Self::Literal(s.chars().next().unwrap_or_default()),
         }
     }

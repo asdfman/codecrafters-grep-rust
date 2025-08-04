@@ -15,6 +15,7 @@ pub enum Pattern {
     LiteralQuantifier(usize),
     PatternWithQuantifier(Box<Pattern>, Quantifier),
     CaptureGroup(Vec<Pattern>),
+    BackReference(usize),
 }
 
 #[derive(Debug, Clone)]

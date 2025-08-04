@@ -73,13 +73,13 @@ fn try_match(patterns: &[Pattern], mut input: &str) -> Option<usize> {
         }
         if let Pattern::PatternWithQuantifier(inner, quant) = pattern {
             let mut count = 0;
-            let mut consumed = 0;
+            let mut match_lengths = vec![];
             let mut rest = input;
             while let Some(len) = try_match(std::slice::from_ref(inner), rest) {
                 if len == 0 {
                     break;
                 }
-                consumed += len;
+                match_lengths.push(len);
                 rest = &rest[len..];
                 count += 1;
                 match quant {
@@ -88,29 +88,33 @@ fn try_match(patterns: &[Pattern], mut input: &str) -> Option<usize> {
                     _ => {}
                 }
             }
+            let mut min_required_match_count = 0;
             match quant {
-                Quantifier::ZeroOrOne | Quantifier::ZeroOrMore => {
-                    dbg!(&patterns[idx + 1..], rest);
+                Quantifier::ZeroOrOne => {
                     let rest_len = try_match(&patterns[idx + 1..], rest)?;
-                    return Some(consumed + rest_len);
-                }
-                Quantifier::OneOrMore => {
-                    if count == 0 {
-                        return None;
-                    }
-                    dbg!(&patterns[idx + 1..], rest);
-                    let rest_len = try_match(&patterns[idx + 1..], rest)?;
-                    return Some(consumed + rest_len);
+                    return Some(match_lengths.iter().sum::<usize>() + rest_len);
                 }
                 Quantifier::Literal(n) => {
                     if count != *n {
                         return None;
                     }
-                    dbg!(&patterns[idx + 1..], rest);
                     let rest_len = try_match(&patterns[idx + 1..], rest)?;
-                    return Some(consumed + rest_len);
+                    return Some(match_lengths.iter().sum::<usize>() + rest_len);
                 }
+                Quantifier::OneOrMore => min_required_match_count = 1,
+                _ => {}
             }
+            if count < min_required_match_count {
+                return None;
+            }
+            let mut rest_len = try_match(&patterns[idx + 1..], rest);
+            while rest_len.is_none() && count > min_required_match_count {
+                count -= 1;
+                match_lengths.pop().unwrap();
+                rest = &input[match_lengths.iter().sum()..];
+                rest_len = try_match(&patterns[idx + 1..], rest);
+            }
+            return Some(match_lengths.iter().sum::<usize>() + rest_len?);
         }
         let match_len = pattern.matches(input)?;
         total_matched_len += match_len;

@@ -33,4 +33,9 @@ mod tests {
         assert!(regex.matches("aaa"));
         assert!(regex.matches("aaab"));
     }
+    #[test]
+    fn test_two_byte_characters() {
+        let regex = Regex::parse("g.+gol");
+        assert!(regex.matches("goøö0Ogol"));
+    }
 }

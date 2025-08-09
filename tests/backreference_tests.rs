@@ -13,4 +13,16 @@ mod tests {
         let pattern = Regex::parse("(cat) and \\1");
         assert!(!pattern.matches("cat and dog"));
     }
+
+    #[test]
+    fn test_multiple_backreferences() {
+        let pattern = Regex::parse(r"('(cat) and \2') is the same as \1");
+        assert!(pattern.matches("'cat and cat' is the same as 'cat and cat'"));
+    }
+
+    #[test]
+    fn test_final_boss() {
+        let pattern = Regex::parse(r"(([abc]+)-([def]+)) is \1, not ([^xyz]+), \2, or \3");
+        assert!(pattern.matches("abc-def is abc-def, not efg, abc, or def"));
+    }
 }

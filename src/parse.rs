@@ -29,16 +29,15 @@ impl From<&str> for Pattern {
             }
             val if val.starts_with('[') => Self::PositiveGroup(Self::parse(&val[1..val.len() - 1])),
             val if val.starts_with('(') && split_either_variants(val).len() == 1 => {
-                Self::CaptureGroup(Self::parse(&val[1..val.len() - 1]))
+                Self::CaptureGroup(0, Self::parse(&val[1..val.len() - 1]))
             }
-            val if val.starts_with('(') && val.contains('|') => {
-                Self::CaptureGroup(vec![Self::Alternate(
-                    split_either_variants(val)
-                        .into_iter()
-                        .map(Pattern::parse)
-                        .collect(),
-                )])
-            }
+            val if val.starts_with('(') && val.contains('|') => Self::Alternate(
+                0,
+                split_either_variants(val)
+                    .into_iter()
+                    .map(Pattern::parse)
+                    .collect(),
+            ),
             val if val.starts_with('{') => Self::LiteralQuantifier(
                 val[1..val.len() - 1]
                     .parse()
@@ -158,4 +157,29 @@ fn split_either_variants(s: &str) -> Vec<&str> {
 
 fn char_is_regex_special(c: &char) -> bool {
     matches!(c, '.' | '*' | '+' | '?' | '|' | '^' | '$')
+}
+
+pub fn assign_capture_indices(pattern: &mut Pattern, next_index: &mut usize) {
+    match pattern {
+        Pattern::CaptureGroup(ref mut idx, ref mut inner) => {
+            *idx = *next_index;
+            *next_index += 1;
+            for p in inner {
+                assign_capture_indices(p, next_index);
+            }
+        }
+        Pattern::Alternate(ref mut idx, ref mut inner) => {
+            *idx = *next_index;
+            *next_index += 1;
+            for p in inner {
+                for s in p {
+                    assign_capture_indices(s, next_index);
+                }
+            }
+        }
+        Pattern::PatternWithQuantifier(inner, _) => {
+            assign_capture_indices(inner, next_index);
+        }
+        _ => {}
+    }
 }

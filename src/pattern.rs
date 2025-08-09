@@ -6,7 +6,7 @@ pub enum Pattern {
     Any,
     PositiveGroup(Vec<Pattern>),
     NegativeGroup(Vec<Pattern>),
-    Alternate(Vec<Vec<Pattern>>),
+    Alternate(usize, Vec<Vec<Pattern>>),
     StartOfString,
     EndOfString,
     OneOrMore,
@@ -14,7 +14,7 @@ pub enum Pattern {
     ZeroOrMore,
     LiteralQuantifier(usize),
     PatternWithQuantifier(Box<Pattern>, Quantifier),
-    CaptureGroup(Vec<Pattern>),
+    CaptureGroup(usize, Vec<Pattern>),
     BackReference(usize),
 }
 
@@ -59,7 +59,9 @@ impl Pattern {
         match self {
             Pattern::PatternWithQuantifier(_, Quantifier::ZeroOrOne)
             | Pattern::PatternWithQuantifier(_, Quantifier::ZeroOrMore) => true,
-            Pattern::Alternate(alts) => alts.iter().any(|alt| alt.iter().any(|x| x.is_optional())),
+            Pattern::Alternate(_, alts) => {
+                alts.iter().any(|alt| alt.iter().any(|x| x.is_optional()))
+            }
             _ => false,
         }
     }

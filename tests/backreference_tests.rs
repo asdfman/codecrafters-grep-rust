@@ -25,4 +25,10 @@ mod tests {
         let pattern = Regex::parse(r"(([abc]+)-([def]+)) is \1, not ([^xyz]+), \2, or \3");
         assert!(pattern.matches("abc-def is abc-def, not efg, abc, or def"));
     }
+
+    #[test]
+    fn test_backref_capture_with_quantifier() {
+        let pattern = Regex::parse(r"once a (drea+mer), alwaysz? a \1");
+        assert!(pattern.matches("once a dreaaamer, always a dreaaamer"));
+    }
 }

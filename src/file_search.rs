@@ -3,7 +3,7 @@ use anyhow::Result;
 use std::path::PathBuf;
 
 pub fn search_files(paths: Vec<PathBuf>, regex: Regex, recursive: bool) -> Result<Vec<String>> {
-    if paths.len() == 1 {
+    if paths.len() == 1 && paths[0].is_file() {
         return search_file(&paths[0], &regex, false);
     }
     let mut results = vec![];

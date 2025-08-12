@@ -23,7 +23,7 @@ fn search_file(path: &PathBuf, regex: &Regex, print_file_path: bool) -> Result<V
         .filter(|line| regex.matches(line))
         .map(|line| {
             if print_file_path {
-                format!("{}: {}", path.display(), line)
+                format!("{}:{}", path.display(), line)
             } else {
                 line.to_string()
             }
